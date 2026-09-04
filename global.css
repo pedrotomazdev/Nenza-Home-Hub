@@ -1,0 +1,50 @@
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+
+@import 'nativewind/theme';
+
+
+
+@theme {
+  /* ========================================
+     BORDER RADIUS
+     ======================================== */
+
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+
+  /* ========================================
+     SPACING
+     ======================================== */
+
+  --spacing-sidebar-width: 260px;
+  --spacing-card-padding: 1.25rem;
+  --spacing-gutter-grid: 1.5rem;
+  --spacing-stack-gap: 0.75rem;
+  --spacing-margin-page: 2rem;
+
+
+  /* ========================================
+     TYPOGRAPHY
+     ======================================== */
+
+  --font-body: "JetBrains Mono";
+  --font-body-medium: "JetBrains Mono Medium";
+  --font-body-bold: "JetBrains Mono Bold";
+
+
+  --text-body-sm: 12px;
+  --text-body-md: 14px;
+  --text-body-lg: 16px;
+  --text-body-xg: 18px;
+  --text-body-xl: 22px;
+
+
+  --text-headline-md: 22px;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg: 28px;
+}

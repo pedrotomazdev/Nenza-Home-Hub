@@ -1,0 +1,5 @@
+# Storage files (uploads)
+storage/files/*
+!storage/files/.gitkeep
+node_modules/
+.env
