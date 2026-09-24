@@ -1,3 +1,4 @@
+const { Bonjour } = require("bonjour-service");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -5,6 +6,7 @@ const path = require("path");
 const healthRoutes = require("./api/routes/health.routes");
 const filesRoutes = require("./api/routes/files.routes");
 const foldersRoutes = require("./api/routes/folders.routes");
+const syncRoutes = require("./api/routes/sync.routes");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -18,14 +20,34 @@ app.use(express.urlencoded({ limit: "500mb", extended: true }));
 app.use("/api", healthRoutes);
 app.use("/api", filesRoutes);
 app.use("/api", foldersRoutes);
+app.use("/api", syncRoutes);
 
 app.use("/storage", express.static(storagePath));
+
+const webPath = path.join(__dirname, "dist");
+
+app.use(express.static(webPath));
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(webPath, "index.html"));
+});
 
 const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`🔥 NenzaHub on FIRE running on port ${PORT}`);
 });
 
-// Configura timeouts longos para aguentar uploads pesados sem cair conexão
-server.setTimeout(15 * 60 * 1000); // 15 minutos
+server.setTimeout(15 * 60 * 1000);
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
+
+
+// mDNS / Bonjour
+const bonjour = new Bonjour();
+
+const service = bonjour.publish({
+    name: "NenzaHub",
+    type: "http",
+    port: PORT,
+});
+
+console.log(`📡 NenzaHub anunciado via mDNS na porta ${PORT}`);

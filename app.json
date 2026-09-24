@@ -11,7 +11,7 @@
       "tsconfigPaths": true
     },
     "plugins": [
-       [
+      [
         "expo-document-picker",
         {
           "iCloudContainerEnvironment": "Production"
@@ -39,7 +39,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.pedrotomazdev.nenzaHomeHub"
     }
   }
 }

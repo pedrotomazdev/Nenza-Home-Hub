@@ -15,6 +15,61 @@ function getCommandOutput(cmd) {
     }
 }
 
+function getAllSensorsAverage() {
+    try {
+        const thermalDir = "/sys/class/thermal";
+        if (!fs.existsSync(thermalDir)) return null;
+
+        const zones = fs.readdirSync(thermalDir).filter(name => name.startsWith("thermal_zone"));
+        
+        let validTemperatures = [];
+        let sensorDetails = {};
+
+        for (const zone of zones) {
+            try {
+                const zonePath = `${thermalDir}/${zone}`;
+                const typePath = `${zonePath}/type`;
+                const tempPath = `${zonePath}/temp`;
+
+                if (!fs.existsSync(typePath) || !fs.existsSync(tempPath)) continue;
+
+                const zoneType = fs.readFileSync(typePath, "utf-8").trim();
+                const rawTemp = fs.readFileSync(tempPath, "utf-8").trim();
+                
+                let temp = parseFloat(rawTemp);
+
+                // Converte de miligraus (ex: 35000) para Celsius (35.0)
+                if (temp > 1000) temp = temp / 1000;
+
+                // FILTRO DE SANEAMENTO:
+                // Descarta sensores com erros conhecidos do kernel:
+                // - Menores ou iguais a 0°C
+                // - Maiores que 90°C (como os 100°C fixos de trava de segurança)
+                if (temp > 0 && temp < 90) {
+                    validTemperatures.push(temp);
+                    sensorDetails[zoneType] = Number(temp.toFixed(1));
+                }
+            } catch {}
+        }
+
+        if (validTemperatures.length === 0) return null;
+
+        // Cálculo da Média Simples
+        const totalSum = validTemperatures.reduce((acc, curr) => acc + curr, 0);
+        const average = totalSum / validTemperatures.length;
+
+        return {
+            averageTemp: Number(average.toFixed(1)),
+            sensorsCount: validTemperatures.length,
+            minTemp: Number(Math.min(...validTemperatures).toFixed(1)),
+            maxTemp: Number(Math.max(...validTemperatures).toFixed(1)),
+            sensors: sensorDetails // Lista todos os sensores válidos e suas temperaturas
+        };
+    } catch {
+        return null;
+    }
+}
+
 function getCpuCores() {
     const nodeCores = os.cpus().length;
     if (nodeCores > 0) return nodeCores;
@@ -32,33 +87,53 @@ function getCpuCores() {
     return "Indisponível";
 }
 
-// Temperatura da CPU lendo zonas térmicas do Android
+// Temperatura da CPU lendo apenas zonas térmicas válidas de processador no Android
 function getCpuTemperature() {
     try {
         const thermalDir = "/sys/class/thermal";
         if (!fs.existsSync(thermalDir)) return null;
 
         const zones = fs.readdirSync(thermalDir).filter(name => name.startsWith("thermal_zone"));
-        let maxTemp = 0;
+        let cpuTemps = [];
 
         for (const zone of zones) {
             try {
-                const tempPath = `${thermalDir}/${zone}/temp`;
-                const rawTemp = fs.readFileSync(tempPath, "utf-8").trim();
-                let temp = parseFloat(rawTemp);
+                const zonePath = `${thermalDir}/${zone}`;
+                const typePath = `${zonePath}/type`;
+                const tempPath = `${zonePath}/temp`;
 
-                // Algumas CPUs reportam em miligraus (ex: 45000 = 45.0°C)
-                if (temp > 1000) {
-                    temp = temp / 1000;
-                }
+                if (!fs.existsSync(typePath) || !fs.existsSync(tempPath)) continue;
 
-                if (temp > 0 && temp < 110 && temp > maxTemp) {
-                    maxTemp = temp;
+                const zoneType = fs.readFileSync(typePath, "utf-8").trim().toLowerCase();
+
+                // Filtra apenas sensores que contenham 'cpu', 'soc' ou 'tsens'
+                // E ignora sensores genéricos, de bateria ou virtuais
+                const isCpuZone = (
+                    zoneType.includes("cpu") || 
+                    zoneType.includes("soc") || 
+                    zoneType.includes("tsens_tz")
+                ) && !zoneType.includes("battery");
+
+                if (isCpuZone) {
+                    const rawTemp = fs.readFileSync(tempPath, "utf-8").trim();
+                    let temp = parseFloat(rawTemp);
+
+                    // Converte de miligraus para Celsius se necessário
+                    if (temp > 1000) temp = temp / 1000;
+
+                    // Descarte de leituras irrealistas (como 100°C fixo ou valores negativos)
+                    if (temp > 0 && temp < 95) {
+                        cpuTemps.push(temp);
+                    }
                 }
             } catch {}
         }
 
-        return maxTemp > 0 ? Number(maxTemp.toFixed(1)) : null;
+        if (cpuTemps.length === 0) return null;
+
+        // Tira a média ou pega a maior temperatura entre os núcleos reais da CPU
+        const maxCpuTemp = Math.max(...cpuTemps);
+        return Number(maxCpuTemp.toFixed(1));
     } catch {
         return null;
     }
@@ -178,6 +253,7 @@ router.get("/health", async (req, res) => {
     // Informações extras
     const wifiInfo = getWifiInfo();
     const cpuTemp = getCpuTemperature();
+    const allSensors = getAllSensorsAverage(); // Leitura da média global de sensores
     const netTraffic = getNetworkTraffic();
 
     // Aguarda o resultado do ping
@@ -213,6 +289,9 @@ router.get("/health", async (req, res) => {
             loadAvg: os.loadavg(),
             temperature: cpuTemp ? `${cpuTemp}°C` : "N/A"
         },
+
+        // Nova chave contendo as métricas combinadas e detalhadas dos sensores
+        thermal: allSensors || "Indisponível",
 
         wifi: wifiInfo || {
             ssid: "Não disponível",

@@ -107,16 +107,16 @@ npx expo start --web
 Para gerar a versão de produção:
 
 ```bash
-npx expo export --platform web
+npm run build:web
 ```
 
-Os arquivos serão gerados na pasta:
+O comando gera o build diretamente em `NenzaServer/dist` quando executado com o destino do servidor:
 
 ```text
-dist/
+npm run build:web -- "C:\Users\Pedro\Documents\Nenza\NenzaServer\dist"
 ```
 
-A pasta `dist` pode então ser publicada em um servidor web.
+O `index.html` gerado carrega `/runtime-config.js` antes do bundle. Esse endpoint é servido pelo NenzaServer e deriva `API_URL` de `HEALTH_API_URL` no `.env`, permitindo trocar o host sem recompilar.
 
 ---
 

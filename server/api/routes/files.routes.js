@@ -51,18 +51,21 @@ router.post("/upload/:folder", (req, res) => {
     const folderPath = path.resolve(filesPath, folder);
 
     if (!fs.existsSync(folderPath)) {
-        return res.status(404).json({
-            error: "Pasta não encontrada.",
-        });
+        fs.mkdirSync(folderPath, { recursive: true });
     }
 
     const storage = multer.diskStorage({
         destination: (req, file, cb) => {
+            if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath, { recursive: true });
+            }
             cb(null, folderPath);
         },
 
         filename: (req, file, cb) => {
-            cb(null, file.originalname);
+            const ext = path.extname(file.originalname) || ".jpg";
+            const safeName = `${Date.now()}_${Math.round(Math.random() * 1e6)}${ext}`;
+            cb(null, safeName);
         },
     });
 
@@ -150,15 +153,20 @@ router.post("/upload/:folder", (req, res) => {
             }
         }
 
+        const relativeUrl = `/storage/${folder}/${req.file.filename}`;
+
         // ARQUIVO NORMAL
         return res.status(201).json({
             message: "Arquivo enviado com sucesso.",
             type: "file",
             extracted: false,
+            url: relativeUrl,
             file: {
-                name: req.file.originalname,
+                name: req.file.filename,
+                originalName: req.file.originalname,
                 size: req.file.size,
                 path: req.file.path,
+                url: relativeUrl,
             },
         });
     });
